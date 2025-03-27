@@ -3,6 +3,7 @@ package com.example.gymapp.ui.screens
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -362,11 +363,19 @@ fun RecommendationScreen(
                     actions = {
                         IconButton(onClick = {
                             val pdfFile = generarPDF(user, rutina, dieta, ejerciciosSugeridos, proteinaMin, proteinaMax, requerimientosProteicos, context)
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "application/pdf"
-                                putExtra(Intent.EXTRA_STREAM, Uri.fromFile(pdfFile))
+                            if (pdfFile != null) {
+                                val uri = FileProvider.getUriForFile(
+                                    context,
+                                    "${context.packageName}.fileprovider",
+                                    pdfFile
+                                )
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "application/pdf"
+                                    putExtra(Intent.EXTRA_STREAM, uri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                context.startActivity(Intent.createChooser(intent, "Compartir Plan PDF"))
                             }
-                            context.startActivity(Intent.createChooser(intent, "Compartir Plan PDF"))
                         }) {
                             Icon(Icons.Default.Share, contentDescription = "Compartir PDF")
                         }
@@ -568,11 +577,19 @@ fun RecommendationScreen(
                         Button(
                             onClick = {
                                 val pdfFile = generarPDF(user, rutina, dieta, ejerciciosSugeridos, proteinaMin, proteinaMax, requerimientosProteicos, context)
-                                val intent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "application/pdf"
-                                    putExtra(Intent.EXTRA_STREAM, Uri.fromFile(pdfFile))
+                                if (pdfFile != null) {
+                                    val uri = FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.fileprovider",
+                                        pdfFile
+                                    )
+                                    val intent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "application/pdf"
+                                        putExtra(Intent.EXTRA_STREAM, uri)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    context.startActivity(Intent.createChooser(intent, "Compartir Plan PDF"))
                                 }
-                                context.startActivity(Intent.createChooser(intent, "Compartir Plan PDF"))
                             },
                             modifier = Modifier.weight(1f)
                         ) {
@@ -586,12 +603,20 @@ fun RecommendationScreen(
                         Button(
                             onClick = {
                                 val pdfFile = generarPDF(user, rutina, dieta, ejerciciosSugeridos, proteinaMin, proteinaMax, requerimientosProteicos, context)
-                                val intent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "application/pdf"
-                                    putExtra(Intent.EXTRA_STREAM, Uri.fromFile(pdfFile))
-                                    putExtra(Intent.EXTRA_SUBJECT, "Tu Plan Personalizado de GymApp")
+                                if (pdfFile != null) {
+                                    val uri = FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.fileprovider",
+                                        pdfFile
+                                    )
+                                    val intent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "application/pdf"
+                                        putExtra(Intent.EXTRA_STREAM, uri)
+                                        putExtra(Intent.EXTRA_SUBJECT, "Tu Plan Personalizado de GymApp")
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    context.startActivity(Intent.createChooser(intent, "Enviar PDF por Email"))
                                 }
-                                context.startActivity(Intent.createChooser(intent, "Enviar PDF por Email"))
                             },
                             modifier = Modifier.weight(1f)
                         ) {
@@ -615,56 +640,63 @@ private fun generarPDF(
     proteinaMax: Double,
     requerimientosProteicos: String,
     context: Context
-): File {
-    val pdfFile = File(context.cacheDir, "plan_personalizado.pdf")
-    val writer = PdfWriter(FileOutputStream(pdfFile))
-    val pdf = PdfDocument(writer)
-    val document = Document(pdf)
+): File? {
+    return try {
+        val pdfFile = File(context.cacheDir, "plan_personalizado.pdf")
+        val writer = PdfWriter(FileOutputStream(pdfFile))
+        val pdf = PdfDocument(writer)
+        val document = Document(pdf)
 
-    // Título
-    val titulo = Paragraph("Plan Personalizado para ${user.nombre}")
-        .setTextAlignment(TextAlignment.CENTER)
-        .setFontSize(20f)
-    document.add(titulo)
-    document.add(Paragraph(""))
+        // Título
+        val titulo = Paragraph("Plan Personalizado para ${user.nombre}")
+            .setTextAlignment(TextAlignment.CENTER)
+            .setFontSize(20f)
+        document.add(titulo)
+        document.add(Paragraph(""))
 
-    // Consideraciones Especiales
-    if (user.enfermedadRestriccion.isNotBlank()) {
-        document.add(Paragraph("⚠️ Consideraciones Especiales"))
+        // Consideraciones Especiales
+        if (user.enfermedadRestriccion.isNotBlank()) {
+            document.add(Paragraph("⚠️ Consideraciones Especiales"))
+                .setFontSize(16f)
+                .setBold()
+            document.add(Paragraph(user.enfermedadRestriccion))
+            document.add(Paragraph(""))
+        }
+
+        // Rutina de Ejercicios
+        document.add(Paragraph("💪 Rutina de Ejercicios"))
             .setFontSize(16f)
             .setBold()
-        document.add(Paragraph(user.enfermedadRestriccion))
+        document.add(Paragraph(rutina))
         document.add(Paragraph(""))
+
+        // Plan de Alimentación
+        document.add(Paragraph("🍽️ Plan de Alimentación"))
+            .setFontSize(16f)
+            .setBold()
+        document.add(Paragraph(dieta))
+        document.add(Paragraph(""))
+
+        // Ejercicios Sugeridos
+        document.add(Paragraph("💪 Ejercicios Sugeridos"))
+            .setFontSize(16f)
+            .setBold()
+        document.add(Paragraph(ejerciciosSugeridos))
+        document.add(Paragraph(""))
+
+        // Requerimientos Proteicos
+        document.add(Paragraph("🥩 Requerimientos Proteicos"))
+            .setFontSize(16f)
+            .setBold()
+        document.add(Paragraph("Rango recomendado: ${proteinaMin.toInt()} - ${proteinaMax.toInt()}g de proteína por día"))
+        document.add(Paragraph("($requerimientosProteicos)"))
+
+        document.close()
+        pdf.close()
+        writer.close()
+        pdfFile
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
     }
-
-    // Rutina de Ejercicios
-    document.add(Paragraph("💪 Rutina de Ejercicios"))
-        .setFontSize(16f)
-        .setBold()
-    document.add(Paragraph(rutina))
-    document.add(Paragraph(""))
-
-    // Plan de Alimentación
-    document.add(Paragraph("🍽️ Plan de Alimentación"))
-        .setFontSize(16f)
-        .setBold()
-    document.add(Paragraph(dieta))
-    document.add(Paragraph(""))
-
-    // Ejercicios Sugeridos
-    document.add(Paragraph("💪 Ejercicios Sugeridos"))
-        .setFontSize(16f)
-        .setBold()
-    document.add(Paragraph(ejerciciosSugeridos))
-    document.add(Paragraph(""))
-
-    // Requerimientos Proteicos
-    document.add(Paragraph("🥩 Requerimientos Proteicos"))
-        .setFontSize(16f)
-        .setBold()
-    document.add(Paragraph("Rango recomendado: ${proteinaMin.toInt()} - ${proteinaMax.toInt()}g de proteína por día"))
-    document.add(Paragraph("($requerimientosProteicos)"))
-
-    document.close()
-    return pdfFile
 } 
